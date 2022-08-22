@@ -10,6 +10,8 @@
 <body>
   <h1>Event List</h1>
 
+  <a href="/event_form"><button> Add Event </button></a>
+
   <div>
     <table>
         <tr>
@@ -24,6 +26,7 @@
                 <td><p>{{event['name']}}</p></td>
                 <td><p>{{event['location']}}</p></td>
                 <td><p>{{event['date']}}</p></td>
+                <td><a href="{{ url_for('event_attendance', eid=event['eid']) }}"><button>Attendance</button></a></td>
                 <td><a href="{{ url_for('edit_event', eid=event['eid']) }}"><button>Edit</button></a></td>
                 <td>
                     <form action="{{ url_for('delete_event', eid=event['eid']) }}" method="post">

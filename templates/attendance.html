@@ -1,0 +1,45 @@
+<html>
+  <style>
+    body{
+      font-size: 15pt;
+      font-family: arial;
+    }
+  </style>
+
+
+<body>
+  <h1>Attendees for {{event_name}}</h1>
+
+  <div>
+    <table>
+        <tr>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>School</th>
+            <th>Attended?</th>
+        </tr>
+        {% for attendee in attendees %}
+            <tr>
+                <td><p>{{attendee['first']}}</p></td>
+                <td><p>{{attendee['last']}}</p></td>
+                <td><p>{{attendee['school']}}</p></td>
+                <td><p>Y</p></td>
+                <td><a href="{{ url_for('mark_absent', eid=eid, pid=attendee['pid']) }}"><button>Toggle Attendance</button></a></td>
+            </tr>
+        {% endfor %}
+        {% for attendee in nonattendees %}
+            <tr>
+                <td><p>{{attendee['first']}}</p></td>
+                <td><p>{{attendee['last']}}</p></td>
+                <td><p>{{attendee['school']}}</p></td>
+                <td><p>N</p></td>
+                <td><a href="{{ url_for('mark_present', eid=eid, pid=attendee['pid']) }}"><button>Toggle Attendance</button></a></td>
+            </tr>
+        {% endfor %}
+    </table>
+  </div>
+
+</body>
+
+
+</html>

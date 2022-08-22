@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+      <meta charset="utf-8">
+      <title>Flask SQL Tutorial</title>
+  </head>
+  <body>
+      <form action="{{ url_for('person_update', pid=person['pid']) }}" method="post">
+          <h5>Enter the user Details</h5>
+          <div>
+              <input type="text" name="first" placeholder="First Name">
+          </div>
+          <div>
+              <input type="text" name="last" placeholder="Last Name">
+          </div>
+          <div>
+              <input type="text" name="school" placeholder="School">
+          </div>
+          <div>
+              <button >Submit</button>
+          </div>
+      </form>
+  </body>
+
+</html>

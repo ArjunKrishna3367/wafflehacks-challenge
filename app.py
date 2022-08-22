@@ -26,21 +26,6 @@ db = SQLAlchemy(app)
 #
 engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
 
-class Event(db.Model):
-    __tablename__ = 'events'
-    eid = db.Column(db.String(8), primary_key=True)
-    name = db.Column(db.String(50), nullable=False)
-    location = db.Column(db.String(50), nullable=True)
-    date = db.Column(db.Date, nullable=True)
-
-    def __init__(self, eid, name, location, date):
-        self.eid = eid
-        self.name = name
-        self.location = location
-        self.date = date
-
-
-
 @app.before_request
 def before_request():
   """
@@ -125,6 +110,100 @@ def delete_event(eid):
     return redirect('/event_list')
 
 
+
+@app.route('/participants_list', methods=['GET'])
+def users_list():
+    cursor = g.conn.execute('SELECT * '
+                            'FROM People')
+    people = []
+    for result in cursor:
+        people.append(result)
+    cursor.close()
+
+    context = dict(data=people)
+    return render_template("participants.html", **context)
+
+@app.route("/add_person", methods=['POST'])
+def add_person():
+    first = request.form["first"]
+    last = request.form["last"]
+    school = request.form["school"]
+    eid = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+
+    g.conn.execute('INSERT INTO People(eid, name, location, date) VALUES (%s, %s, %s, %s)', eid, name, location, date)
+
+    return render_template("eventform.html")
+
+@app.route('/edit_person/<pid>', methods=['GET'])
+def edit_person(pid):
+    cursor = g.conn.execute('SELECT * '
+                   'FROM People '
+                   'WHERE pid = %s', pid)
+    context = dict(event = cursor.fetchone())
+    return render_template("person_edit_form.html", **context)
+
+@app.route('/person_update/<pid>', methods=['POST'])
+def person_update(eid):
+    first = request.form["first"]
+    last = request.form["last"]
+    school = request.form["school"]
+    g.conn.execute('UPDATE People '
+                   'SET first = %s, last = %s, school = %s '
+                   'WHERE pid = %s', first, last, school, eid)
+    return redirect('/participants_list')
+
+@app.route('/delete_person/<pid>', methods=['POST'])
+def delete_person(pid):
+    g.conn.execute('DELETE FROM People '
+                   'WHERE pid = %s', pid)
+    return redirect('/participants_list')
+
+@app.route('/event_attendance/<eid>', methods=['GET'])
+def event_attendance(eid):
+    cursor = g.conn.execute('SELECT P.* '
+                            'FROM People P '
+                            'WHERE EXISTS '
+                                '(SELECT * '
+                                'FROM People P '
+                                'LEFT JOIN Attends A '
+                                'ON P.pid = A.pid '
+                                'WHERE A.eid = %s) '
+                            'ORDER BY P.last ', eid)
+
+    attendees = []
+    for result in cursor:
+        attendees.append(result)
+
+    cursor = g.conn.execute('SELECT P.* '
+                            'FROM People P '
+                            'WHERE NOT EXISTS '
+                                '(SELECT * '
+                                'FROM People P '
+                                'LEFT JOIN Attends A '
+                                'ON P.pid = A.pid '
+                                'WHERE A.eid = %s) '
+                            'ORDER BY P.last ', eid)
+
+    nonattendees = []
+    for result in cursor:
+        nonattendees.append(result)
+
+    event_name = g.conn.execute('SELECT name FROM Events where eid=%s', eid)
+
+    cursor.close()
+
+    context = dict(attendees=attendees, nonattendees=nonattendees, event_name=event_name)
+    return render_template("attendance.html", **context)
+
+@app.route('/mark_present/<eid>/<pid>', methods=['GET'])
+def mark_present(eid, pid):
+    g.conn.execute('INSERT INTO Attends(eid, pid) VALUES (%s, %s, %s, %s)', eid, pid)
+    return redirect('/event_attendance/' + eid)
+
+@app.route('/mark_absent/<eid>/<pid>', methods=['GET'])
+def mark_absent(eid, pid):
+    g.conn.execute('DELETE FROM Attends WHERE eid = %s AND pid = %s', eid, pid)
+    return redirect('/event_attendance/' + eid)
 
 if __name__ == '__main__':
     db.create_all()
