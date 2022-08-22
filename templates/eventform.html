@@ -5,13 +5,16 @@
       <title>Flask SQL Tutorial</title>
   </head>
   <body>
-      <form action="{{ url_for('personadd')}}" method="post">
+      <form action="{{ url_for('addevent')}}" method="post">
           <h5>Enter the user Details</h5>
           <div>
-              <input type="text" name="pname" placeholder="pname">
+              <input type="text" name="name" placeholder="Event Name">
           </div>
           <div>
-              <input type="text" name="color" placeholder="color">
+              <input type="text" name="location" placeholder="Location">
+          </div>
+          <div>
+              <input type="date" name="date">
           </div>
           <div>
               <button >Submit</button>
