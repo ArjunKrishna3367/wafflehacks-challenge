@@ -1,5 +1,8 @@
 # initially following tutorial from
 # https://towardsdatascience.com/sending-data-from-a-flask-app-to-postgresql-database-889304964bf2
+
+#incorporating some elements from previous project for databases course
+
 import os
 import random
 import string
@@ -67,10 +70,22 @@ def teardown_request(exception):
 
 @app.route('/')
 def home():
-    return '<a href="/eventform"><button> Click here </button></a>'
+    return render_template("index.html")
+
+@app.route('/event_list')
+def eventlist():
+    cursor = g.conn.execute('SELECT * '
+                            'FROM events')
+    events = []
+    for result in cursor:
+        events.append(result)
+    cursor.close()
+
+    context = dict(data=events)
+    return render_template("eventlist.html", **context)
 
 
-@app.route("/eventform")
+@app.route("/event_form")
 def eventform():
     return render_template("eventform.html")
 
@@ -80,13 +95,36 @@ def addevent():
     location = request.form["location"]
     date = datetime.datetime.strptime(request.form["date"], '%Y-%m-%d').date()
     eid = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-    # entry = Event(eid, name, location, date)
-    # db.session.add(entry)
-    # db.session.commit()
 
     g.conn.execute('INSERT INTO Events(eid, name, location, date) VALUES (%s, %s, %s, %s)', eid, name, location, date)
 
     return render_template("eventform.html")
+
+@app.route('/edit_event/<eid>', methods=['GET'])
+def edit_event(eid):
+    cursor = g.conn.execute('SELECT * '
+                   'FROM Events '
+                   'WHERE eid = %s', eid)
+    context = dict(event = cursor.fetchone())
+    return render_template("event_edit_form.html", **context)
+
+@app.route('/event_update/<eid>', methods=['POST'])
+def event_update(eid):
+    name = request.form["name"]
+    location = request.form["location"]
+    date = datetime.datetime.strptime(request.form["date"], '%Y-%m-%d').date()
+    g.conn.execute('UPDATE Events '
+                   'SET name = %s, location = %s, date = %s '
+                   'WHERE eid = %s', name, location, date, eid)
+    return redirect('/event_list')
+
+@app.route('/delete_event/<eid>', methods=['POST'])
+def delete_event(eid):
+    g.conn.execute('DELETE FROM Events '
+                   'WHERE eid = %s', eid)
+    return redirect('/event_list')
+
+
 
 if __name__ == '__main__':
     db.create_all()

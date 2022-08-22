@@ -1,0 +1,41 @@
+<html>
+  <style>
+    body{
+      font-size: 15pt;
+      font-family: arial;
+    }
+  </style>
+
+
+<body>
+  <h1>Event List</h1>
+
+  <div>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Date</th>
+            <th></th>
+            <th></th>
+        </tr>
+        {% for event in data %}
+            <tr>
+                <td><p>{{event['name']}}</p></td>
+                <td><p>{{event['location']}}</p></td>
+                <td><p>{{event['date']}}</p></td>
+                <td><a href="{{ url_for('edit_event', eid=event['eid']) }}"><button>Edit</button></a></td>
+                <td>
+                    <form action="{{ url_for('delete_event', eid=event['eid']) }}" method="post">
+                        <button name="delete" value="delete">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+  </div>
+
+</body>
+
+
+</html>
