@@ -1,7 +1,7 @@
 # initially following tutorial from
 # https://towardsdatascience.com/sending-data-from-a-flask-app-to-postgresql-database-889304964bf2
 
-#incorporating some elements from previous project for databases course
+# incorporating some elements from previous project for databases course
 
 import os
 import random
@@ -19,11 +19,11 @@ print(tmpl_dir)
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-#for testing on local database
+# for testing on my local database
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://arjun:waffle@localhost/flask_db'
 
 # details for db hosted on heroku
-# apparently these details might change, not sure when
+# apparently heroku might change these details occasionally, not sure when
 host = "ec2-3-219-229-143.compute-1.amazonaws.com"
 port = 5432
 database = "dfeh4rkfk17g87"
@@ -68,6 +68,7 @@ def teardown_request(exception):
 def home():
     return render_template("index.html")
 
+# displays a list of all events w/ options for viewing attendance, editing, and deleting
 @app.route('/event_list')
 def event_list():
     cursor = g.conn.execute('SELECT * '
@@ -81,11 +82,12 @@ def event_list():
     context = dict(data=events)
     return render_template("event_list.html", **context)
 
-
+# form for adding events
 @app.route("/event_form")
 def event_form():
     return render_template("event_add_form.html")
 
+# request to add new event to db
 @app.route("/add_event", methods=['POST'])
 def add_event():
     name = request.form["name"]
@@ -97,6 +99,7 @@ def add_event():
 
     return render_template("event_add_form.html")
 
+# form to edit the selected event
 @app.route('/edit_event/<eid>', methods=['GET'])
 def edit_event(eid):
     cursor = g.conn.execute('SELECT * '
@@ -105,6 +108,7 @@ def edit_event(eid):
     context = dict(event = cursor.fetchone())
     return render_template("event_edit_form.html", **context)
 
+# request to edit selected event in db
 @app.route('/event_update/<eid>', methods=['POST'])
 def event_update(eid):
     name = request.form["name"]
@@ -115,14 +119,14 @@ def event_update(eid):
                    'WHERE eid = %s', name, location, date, eid)
     return redirect('/event_list')
 
+# request to delete selected event in db
 @app.route('/delete_event/<eid>', methods=['POST'])
 def delete_event(eid):
     g.conn.execute('DELETE FROM Events '
                    'WHERE eid = %s', eid)
     return redirect('/event_list')
 
-
-
+# displays list of participants w/ options to edit or delete
 @app.route('/participant_list', methods=['GET'])
 def participant_list():
     cursor = g.conn.execute('SELECT * '
@@ -136,10 +140,12 @@ def participant_list():
     context = dict(data=people)
     return render_template("participants.html", **context)
 
+# form to add participants
 @app.route("/person_form", methods=['GET'])
 def person_form():
     return render_template("person_add_form.html")
 
+# request to add participant to db
 @app.route("/add_person", methods=['POST'])
 def add_person():
     first = request.form["first"]
@@ -151,6 +157,7 @@ def add_person():
 
     return render_template("person_add_form.html")
 
+# form to edit selected participant
 @app.route('/edit_person/<pid>', methods=['GET'])
 def edit_person(pid):
     cursor = g.conn.execute('SELECT * '
@@ -159,6 +166,7 @@ def edit_person(pid):
     context = dict(person = cursor.fetchone())
     return render_template("person_edit_form.html", **context)
 
+# request to edit selected participant
 @app.route('/person_update/<pid>', methods=['POST'])
 def person_update(pid):
     first = request.form["first"]
@@ -169,12 +177,17 @@ def person_update(pid):
                    'WHERE pid = %s', first, last, school, pid)
     return redirect('/participant_list')
 
+# request to delete selected participant
 @app.route('/delete_person/<pid>', methods=['POST'])
 def delete_person(pid):
     g.conn.execute('DELETE FROM People '
                    'WHERE pid = %s', pid)
     return redirect('/participant_list')
 
+# displays list of attendees (and non-attendees) for selected event
+# the people who have an entry in the attends table for the selected event are marked as attendee
+# every else is a non-attendee
+# Can click the toggle button to mark attendance or not
 @app.route('/event_attendance/<eid>', methods=['GET'])
 def event_attendance(eid):
     cursor = g.conn.execute('SELECT * FROM People P '
@@ -189,8 +202,6 @@ def event_attendance(eid):
     for result in cursor:
         attendees.append(result)
 
-    print(attendees)
-
     cursor = g.conn.execute('SELECT * FROM People P '
                             'WHERE P.pid NOT IN '
                             '(SELECT P.pid FROM People P '
@@ -203,8 +214,6 @@ def event_attendance(eid):
     for result in cursor:
         nonattendees.append(result)
 
-    print(nonattendees)
-
     cursor = g.conn.execute('SELECT * '
                             'FROM Events '
                             'WHERE eid = %s', eid)
@@ -216,16 +225,16 @@ def event_attendance(eid):
     context = dict(attendees=attendees, nonattendees=nonattendees, event=event_info)
     return render_template("attendance.html", **context)
 
+# marks an attendee as present for selected event if they were absent
 @app.route('/mark_present/<eid>/<pid>', methods=['GET'])
 def mark_present(eid, pid):
     g.conn.execute('INSERT INTO Attends(eid, pid) VALUES (%s, %s)', eid, pid)
-    print(eid, pid)
     return redirect('/event_attendance/' + eid)
 
+# marks an attendee as not present for selected event if they were present
 @app.route('/mark_absent/<eid>/<pid>', methods=['GET'])
 def mark_absent(eid, pid):
     g.conn.execute('DELETE FROM Attends WHERE eid = %s AND pid = %s', eid, pid)
-    print(eid, pid)
     return redirect('/event_attendance/' + eid)
 
 

@@ -2,9 +2,10 @@
 <html lang="en">
   <head>
       <meta charset="utf-8">
-      <title>Person Edit Form</title>
+      <title>Edit Person</title>
   </head>
   <body>
+      <h1>Edit Person</h1>
       <a href="/participant_list"><button> Back to Participant List </button></a>
 
       <form action="{{ url_for('person_update', pid=person['pid']) }}" method="post">
