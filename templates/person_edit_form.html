@@ -2,9 +2,11 @@
 <html lang="en">
   <head>
       <meta charset="utf-8">
-      <title>Flask SQL Tutorial</title>
+      <title>Person Edit Form</title>
   </head>
   <body>
+      <a href="/participant_list"><button> Back to Participant List </button></a>
+
       <form action="{{ url_for('person_update', pid=person['pid']) }}" method="post">
           <h5>Enter the user Details</h5>
           <div>

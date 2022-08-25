@@ -9,22 +9,33 @@ import string
 
 from flask import Flask, request, render_template, g, redirect, flash
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import *
+from sqlalchemy import create_engine
 import datetime
+
 
 tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 app = Flask(__name__, template_folder=tmpl_dir, static_url_path='')
 print(tmpl_dir)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://arjun:waffle@localhost/flask_db'
+
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.secret_key = 'secret string'
+
+#for testing on local database
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://arjun:waffle@localhost/flask_db'
+
+# details for db hosted on heroku
+# apparently these details might change, not sure when
+host = "ec2-3-219-229-143.compute-1.amazonaws.com"
+port = 5432
+database = "dfeh4rkfk17g87"
+user = "vputohlcpjkdle"
+password = "4271bc45e4782721e0cb54935d49559da5998e6bce0a51589237d6b376daaab8"
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f"postgresql://{user}:{password}@{host}/{database}"
+
+connection = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
 
 db = SQLAlchemy(app)
 
-#
-# This line creates a database engine that knows how to connect to the URI above.
-#
-engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
 
 @app.before_request
 def before_request():
@@ -36,7 +47,7 @@ def before_request():
   The variable g is globally accessible.
   """
   try:
-    g.conn = engine.connect()
+    g.conn = connection.connect()
   except:
     print("uh oh, problem connecting to database")
     import traceback; traceback.print_exc()
@@ -58,24 +69,25 @@ def home():
     return render_template("index.html")
 
 @app.route('/event_list')
-def eventlist():
+def event_list():
     cursor = g.conn.execute('SELECT * '
-                            'FROM events')
+                            'FROM events '
+                            'ORDER BY date')
     events = []
     for result in cursor:
         events.append(result)
     cursor.close()
 
     context = dict(data=events)
-    return render_template("eventlist.html", **context)
+    return render_template("event_list.html", **context)
 
 
 @app.route("/event_form")
-def eventform():
-    return render_template("eventform.html")
+def event_form():
+    return render_template("event_add_form.html")
 
-@app.route("/addevent", methods=['POST'])
-def addevent():
+@app.route("/add_event", methods=['POST'])
+def add_event():
     name = request.form["name"]
     location = request.form["location"]
     date = datetime.datetime.strptime(request.form["date"], '%Y-%m-%d').date()
@@ -83,7 +95,7 @@ def addevent():
 
     g.conn.execute('INSERT INTO Events(eid, name, location, date) VALUES (%s, %s, %s, %s)', eid, name, location, date)
 
-    return render_template("eventform.html")
+    return render_template("event_add_form.html")
 
 @app.route('/edit_event/<eid>', methods=['GET'])
 def edit_event(eid):
@@ -111,10 +123,11 @@ def delete_event(eid):
 
 
 
-@app.route('/participants_list', methods=['GET'])
-def users_list():
+@app.route('/participant_list', methods=['GET'])
+def participant_list():
     cursor = g.conn.execute('SELECT * '
-                            'FROM People')
+                            'FROM People '
+                            'ORDER BY last')
     people = []
     for result in cursor:
         people.append(result)
@@ -123,87 +136,99 @@ def users_list():
     context = dict(data=people)
     return render_template("participants.html", **context)
 
+@app.route("/person_form", methods=['GET'])
+def person_form():
+    return render_template("person_add_form.html")
+
 @app.route("/add_person", methods=['POST'])
 def add_person():
     first = request.form["first"]
     last = request.form["last"]
     school = request.form["school"]
-    eid = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    pid = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
 
-    g.conn.execute('INSERT INTO People(eid, name, location, date) VALUES (%s, %s, %s, %s)', eid, name, location, date)
+    g.conn.execute('INSERT INTO People(pid, first, last, school) VALUES (%s, %s, %s, %s)', pid, first, last, school)
 
-    return render_template("eventform.html")
+    return render_template("person_add_form.html")
 
 @app.route('/edit_person/<pid>', methods=['GET'])
 def edit_person(pid):
     cursor = g.conn.execute('SELECT * '
                    'FROM People '
                    'WHERE pid = %s', pid)
-    context = dict(event = cursor.fetchone())
+    context = dict(person = cursor.fetchone())
     return render_template("person_edit_form.html", **context)
 
 @app.route('/person_update/<pid>', methods=['POST'])
-def person_update(eid):
+def person_update(pid):
     first = request.form["first"]
     last = request.form["last"]
     school = request.form["school"]
     g.conn.execute('UPDATE People '
                    'SET first = %s, last = %s, school = %s '
-                   'WHERE pid = %s', first, last, school, eid)
-    return redirect('/participants_list')
+                   'WHERE pid = %s', first, last, school, pid)
+    return redirect('/participant_list')
 
 @app.route('/delete_person/<pid>', methods=['POST'])
 def delete_person(pid):
     g.conn.execute('DELETE FROM People '
                    'WHERE pid = %s', pid)
-    return redirect('/participants_list')
+    return redirect('/participant_list')
 
 @app.route('/event_attendance/<eid>', methods=['GET'])
 def event_attendance(eid):
-    cursor = g.conn.execute('SELECT P.* '
-                            'FROM People P '
-                            'WHERE EXISTS '
-                                '(SELECT * '
-                                'FROM People P '
-                                'LEFT JOIN Attends A '
-                                'ON P.pid = A.pid '
-                                'WHERE A.eid = %s) '
-                            'ORDER BY P.last ', eid)
+    cursor = g.conn.execute('SELECT * FROM People P '
+                            'WHERE P.pid IN '
+                            '(SELECT P.pid FROM People P '
+                            'RIGHT JOIN Attends A '
+                            'ON P.pid = A.pid AND A.eid = %s' 
+                            'WHERE P.pid IS NOT NULL) '
+                            'ORDER BY P.last', eid)
 
     attendees = []
     for result in cursor:
         attendees.append(result)
 
-    cursor = g.conn.execute('SELECT P.* '
-                            'FROM People P '
-                            'WHERE NOT EXISTS '
-                                '(SELECT * '
-                                'FROM People P '
-                                'LEFT JOIN Attends A '
-                                'ON P.pid = A.pid '
-                                'WHERE A.eid = %s) '
-                            'ORDER BY P.last ', eid)
+    print(attendees)
+
+    cursor = g.conn.execute('SELECT * FROM People P '
+                            'WHERE P.pid NOT IN '
+                            '(SELECT P.pid FROM People P '
+                            'RIGHT JOIN Attends A '
+                            'ON P.pid = A.pid AND A.eid = %s '
+                            'WHERE P.pid IS NOT NULL) '
+                            'ORDER BY P.last', eid)
 
     nonattendees = []
     for result in cursor:
         nonattendees.append(result)
 
-    event_name = g.conn.execute('SELECT name FROM Events where eid=%s', eid)
+    print(nonattendees)
+
+    cursor = g.conn.execute('SELECT * '
+                            'FROM Events '
+                            'WHERE eid = %s', eid)
+
+    event_info = cursor.fetchone()
 
     cursor.close()
 
-    context = dict(attendees=attendees, nonattendees=nonattendees, event_name=event_name)
+    context = dict(attendees=attendees, nonattendees=nonattendees, event=event_info)
     return render_template("attendance.html", **context)
 
 @app.route('/mark_present/<eid>/<pid>', methods=['GET'])
 def mark_present(eid, pid):
-    g.conn.execute('INSERT INTO Attends(eid, pid) VALUES (%s, %s, %s, %s)', eid, pid)
+    g.conn.execute('INSERT INTO Attends(eid, pid) VALUES (%s, %s)', eid, pid)
+    print(eid, pid)
     return redirect('/event_attendance/' + eid)
 
 @app.route('/mark_absent/<eid>/<pid>', methods=['GET'])
 def mark_absent(eid, pid):
     g.conn.execute('DELETE FROM Attends WHERE eid = %s AND pid = %s', eid, pid)
+    print(eid, pid)
     return redirect('/event_attendance/' + eid)
+
+
 
 if __name__ == '__main__':
     db.create_all()

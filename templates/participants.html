@@ -8,9 +8,10 @@
 
 
 <body>
-  <h1>All Attendees</h1>
+  <h1>All Participants</h1>
 
-  <a href="/event_form"><button> Add Attendee </button></a>
+  <a href="/"><button> Home </button></a>
+  <a href="/person_form"><button> Add Participant </button></a>
 
   <div>
     <table>
@@ -25,6 +26,11 @@
                 <td><p>{{person['last']}}</p></td>
                 <td><p>{{person['school']}}</p></td>
                 <td><a href="{{ url_for('edit_person', pid=person['pid']) }}"><button>Edit</button></a></td>
+                <td>
+                    <form action="{{ url_for('delete_person', pid=person['pid']) }}" method="post">
+                        <button name="delete" value="delete">Delete</button>
+                    </form>
+                </td>
             </tr>
         {% endfor %}
     </table>
